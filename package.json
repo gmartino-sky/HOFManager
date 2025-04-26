@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "**HOF Manager** is a private Discord bot built to manage weekly donations, clan member tracking, and character roles for MIR4 communities. Designed with internal clan logistics in mind, this bot ensures donation transparency, member self-service, and leadership oversight — all while keeping the main character as the point of control.",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js",
     "deploy": "node deploy-commands.js"
