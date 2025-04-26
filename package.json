@@ -1,0 +1,26 @@
+{
+  "name": "hofmanager",
+  "version": "1.0.0",
+  "description": "**HOF Manager** is a private Discord bot built to manage weekly donations, clan member tracking, and character roles for MIR4 communities. Designed with internal clan logistics in mind, this bot ensures donation transparency, member self-service, and leadership oversight — all while keeping the main character as the point of control.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gmartino-sky/HOFManager.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gmartino-sky/HOFManager/issues"
+  },
+  "homepage": "https://github.com/gmartino-sky/HOFManager#readme",
+  "dependencies": {
+    "csv-writer": "^1.6.0",
+    "discord.js": "^14.19.1",
+    "dotenv": "^16.5.0",
+    "node-cron": "^3.0.3"
+  }
+}
