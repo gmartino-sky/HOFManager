@@ -9,10 +9,11 @@ async function handleRegisterCharModal(interaction) {
     const discordUsername = interaction.user.tag;
 
     const name = interaction.fields.getTextInputValue('character_name').trim();
-    const type = interaction.fields.getSelectMenuValues('character_type')[0];
-    const clan = interaction.fields.getSelectMenuValues('character_clan')[0];
+    const type = interaction.fields.getTextInputValue('character_type').trim().toLowerCase();
+    const clan = interaction.fields.getTextInputValue('character_clan').trim();
 
-    let users = (await db.get('users')) || [];
+    let usersRaw = await db.get('users');
+    const users = Array.isArray(usersRaw) ? usersRaw : (usersRaw?.value || []);
 
     const userIndex = users.findIndex(u => u.discord_user_id === discordUserId);
 
@@ -31,7 +32,7 @@ async function handleRegisterCharModal(interaction) {
             user.characters = user.characters.filter(c => c.type !== 'main');
         }
 
-        // Remove existing character with same name
+        // Remove existing character with same name (to replace)
         user.characters = user.characters.filter(c => c.name !== name);
 
         // Add new character
@@ -40,7 +41,7 @@ async function handleRegisterCharModal(interaction) {
         users[userIndex] = user;
     }
 
-    await db.set('users', users);
+    await db.set('users', users); // Guarda todo el users actualizado correctamente
 
     await interaction.reply({
         content: `✅ Character **${name}** registered as **${type.toUpperCase()}** in **${clan}**.`,

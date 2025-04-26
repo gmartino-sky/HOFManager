@@ -1,14 +1,15 @@
 // File: cron/dailyReminder.js
 
 const cron = require('node-cron');
-const { Client } = require('discord.js');
+const { DateTime } = require('luxon');
 const { getDonationsByWeek } = require('../db/donations');
 const { getMainCharacters } = require('../db/users');
-const { formatWeek } = require('../utils/date');
 
 // Main function that runs daily
 async function runDailyReminder(client) {
-    const currentWeek = formatWeek(new Date().toISOString());
+    const now = DateTime.now().setZone('America/Sao_Paulo');
+    const saturday = now.endOf('week').minus({ days: 1 });
+    const currentWeek = `Week ending ${saturday.toFormat('dd')} - ${saturday.toFormat('LLLL')}`;
 
     const donations = await getDonationsByWeek(currentWeek);
     const donatedCharacters = new Set(donations.map(d => d.character));
@@ -16,12 +17,18 @@ async function runDailyReminder(client) {
     const mainCharacters = await getMainCharacters();
 
     for (const main of mainCharacters) {
-        if (!donatedCharacters.has(main.character_name)) {
+        if (!donatedCharacters.has(main.name)) {
             try {
                 const user = await client.users.fetch(main.discord_user_id);
-                await user.send(`📣 Remember to donate your gold this week! Your main character **${main.character_name}** hasn’t donated yet.`);
+
+                const reminderMessage =
+                    `📣 Hey ${main.discord_username}! Don't forget to donate your gold for your main character **${main.name}** this week! Thank you 🙌
+📣 ¡Hola ${main.discord_username}! No olvides donar tu oro esta semana por tu personaje principal **${main.name}**. ¡Gracias 🙌!
+📣 嘿 ${main.discord_username}！别忘了为你的主角色 **${main.name}** 本周捐赠黄金！谢谢 🙌`;
+
+                await user.send(reminderMessage);
             } catch (err) {
-                console.error(`❌ Failed to remind ${main.discord_username}`, err);
+                console.error(`❌ Failed to send reminder to ${main.discord_username}`, err);
             }
         }
     }

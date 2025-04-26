@@ -1,57 +1,52 @@
 // File: commands/donation.js
 
-const { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, SelectMenuBuilder } = require('discord.js');
-const clans = require('../config/clans'); // Assuming you have a clans.js with fixed list
+const {
+    SlashCommandBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+    ActionRowBuilder
+} = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('donation')
-        .setDescription('Register your weekly gold donation'),
+        .setDescription('Register a donation for your character'),
 
     async execute(interaction) {
         const modal = new ModalBuilder()
-            .setCustomId('donationModal')
-            .setTitle('Register your Donation');
+            .setCustomId('donation_modal')
+            .setTitle('Register Donation');
 
         const characterInput = new TextInputBuilder()
-            .setCustomId('characterName')
+            .setCustomId('character_name')
             .setLabel('Character Name')
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
 
-        const donationMethodInput = new SelectMenuBuilder()
-            .setCustomId('donationMethod')
-            .setPlaceholder('Select Donation Method')
-            .addOptions([
-                { label: 'Direct', value: 'direct' },
-                { label: 'Marketplace', value: 'marketplace' }
-            ]);
-
-        const clanInput = new SelectMenuBuilder()
-            .setCustomId('clan')
-            .setPlaceholder('Select Clan')
-            .addOptions(
-                clans.map(clan => ({
-                    label: clan.name,
-                    value: clan.id
-                }))
-            );
-
-        const donationDateInput = new TextInputBuilder()
-            .setCustomId('donationDate')
-            .setLabel('Donation Date (YYYY-MM-DD)')
-            .setPlaceholder('Defaults to today if empty')
+        const clanInput = new TextInputBuilder()
+            .setCustomId('clan_name')
+            .setLabel('Clan Name')
             .setStyle(TextInputStyle.Short)
-            .setRequired(false);
+            .setRequired(true);
 
-        // Group components into Action Rows
-        const firstRow = new ActionRowBuilder().addComponents(characterInput);
-        const secondRow = new ActionRowBuilder().addComponents(donationMethodInput);
-        const thirdRow = new ActionRowBuilder().addComponents(clanInput);
-        const fourthRow = new ActionRowBuilder().addComponents(donationDateInput);
+        const methodInput = new TextInputBuilder()
+            .setCustomId('donation_method')
+            .setLabel('Donation Method (direct or market)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
 
-        modal.addComponents(firstRow, secondRow, thirdRow, fourthRow);
+        const dateInput = new TextInputBuilder()
+            .setCustomId('donation_date')
+            .setLabel('Donation Date (YYYY-MM-DD)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
 
-        await interaction.showModal(modal);
+        const row1 = new ActionRowBuilder().addComponents(characterInput);
+        const row2 = new ActionRowBuilder().addComponents(clanInput);
+        const row3 = new ActionRowBuilder().addComponents(methodInput);
+        const row4 = new ActionRowBuilder().addComponents(dateInput);
+
+        await interaction.showModal(modal.addComponents(row1, row2, row3, row4));
     }
 };

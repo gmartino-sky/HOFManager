@@ -1,56 +1,112 @@
 // File: commands/weekReport.js
 
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
+const { DateTime } = require('luxon');
+const { getMainCharacters } = require('../db/users');
 const { getDonationsByWeek } = require('../db/donations');
-const { formatWeek } = require('../utils/date');
-const { getMainCharacters } = require('../db/users'); // to be implemented in db/users.js
+const { createObjectCsvStringifier } = require('csv-writer');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('report-week') // User-facing name (stays the same)
-        .setDescription('View the donation report for the current week')
-        .setDefaultMemberPermissions(0), // We'll restrict this later to specific roles (ClanLeader)
+        .setName('report-week')
+        .setDescription('Generate a weekly donation report for all main characters.'),
 
     async execute(interaction) {
-        const currentWeek = formatWeek(new Date().toISOString());
+        await interaction.deferReply({ ephemeral: true });
 
-        // Retrieve all main characters
+        const now = DateTime.now().setZone('America/Sao_Paulo');
+        const saturday = now.endOf('week').minus({ days: 1 });
+        const currentWeek = `Week ending ${saturday.toFormat('dd')} - ${saturday.toFormat('LLLL')}`;
+
         const mainCharacters = await getMainCharacters();
-
-        // Retrieve donations for the current week
         const donations = await getDonationsByWeek(currentWeek);
 
-        // Build a set of donated characters
-        const donatedCharacters = new Set(donations.map(donation => donation.character));
+        const donatedCharacterNames = donations.map(d => d.character);
 
-        // Find which Mains have not donated
-        const missingCharacters = mainCharacters.filter(main => !donatedCharacters.has(main.character_name));
+        const charactersWhoDonated = [];
+        const charactersMissingDonation = [];
 
-        const reportEmbed = new EmbedBuilder()
-            .setTitle(`Weekly Donation Report - ${currentWeek}`)
-            .setColor(0x3498db)
-            .addFields(
-                { name: '✅ Donations registered', value: `${mainCharacters.length - missingCharacters.length}/${mainCharacters.length}`, inline: true },
-                { name: '🔴 Missing donations', value: `${missingCharacters.length}`, inline: true }
-            );
+        const fullCsvData = [];
 
-        if (missingCharacters.length > 0) {
-            const missingList = missingCharacters.map(mc => `• ${mc.character_name}`).join('\n');
-            reportEmbed.addFields({ name: 'Characters missing donation', value: missingList });
+        for (const main of mainCharacters) {
+            const donation = donations.find(d => d.character === main.name);
+            if (donation) {
+                charactersWhoDonated.push(main.name);
+                fullCsvData.push({
+                    character_name: main.name,
+                    discord_username: main.discord_username,
+                    type: 'MAIN',
+                    donation_status: 'Donated',
+                    clan: donation.clan,
+                    donation_date: donation.donation_date
+                });
+            } else {
+                charactersMissingDonation.push(main.name);
+                fullCsvData.push({
+                    character_name: main.name,
+                    discord_username: main.discord_username,
+                    type: 'MAIN',
+                    donation_status: 'Missing',
+                    clan: '',
+                    donation_date: ''
+                });
+            }
         }
 
-        const exportButton = new ButtonBuilder()
-            .setCustomId('exportCsv')
-            .setLabel('📂 Export CSV')
-            .setStyle(ButtonStyle.Primary);
+        const embed = new EmbedBuilder()
+            .setTitle(`Weekly Donation Report - ${currentWeek}`)
+            .setColor(0x00AE86)
+            .addFields(
+                { name: '✅ Donations registered', value: `${charactersWhoDonated.length}/${mainCharacters.length}`, inline: true },
+                { name: '🔴 Missing donations', value: `${charactersMissingDonation.length}`, inline: true },
+                { name: 'Characters missing donation', value: charactersMissingDonation.length > 0 ? charactersMissingDonation.map(c => `• ${c}`).join('\n') : 'None' }
+            );
 
-        const actionRow = new ActionRowBuilder().addComponents(exportButton);
+        if (charactersWhoDonated.length > 0) {
+            embed.addFields({
+                name: '✅ Characters who donated:',
+                value: charactersWhoDonated.map(c => `• ${c}`).join('\n'),
+                inline: false
+            });
+        }
 
-        await interaction.reply({
-            embeds: [reportEmbed],
-            components: [actionRow],
-            ephemeral: true
+        if (charactersMissingDonation.length > 0) {
+            embed.addFields({
+                name: '🔴 Characters missing donation:',
+                value: charactersMissingDonation.map(c => `• ${c}`).join('\n'),
+                inline: false
+            });
+        }
+
+        // Create CSV Stringifier
+        const csvStringifier = createObjectCsvStringifier({
+            header: [
+                { id: 'character_name', title: 'Character Name' },
+                { id: 'discord_username', title: 'Discord Username' },
+                { id: 'type', title: 'Type' },
+                { id: 'donation_status', title: 'Donation Status' },
+                { id: 'clan', title: 'Clan' },
+                { id: 'donation_date', title: 'Donation Date' }
+            ]
         });
+
+        const csvContent = csvStringifier.getHeaderString() + csvStringifier.stringifyRecords(fullCsvData);
+
+        // Save the CSV content temporarily
+        const csvBuffer = Buffer.from(csvContent, 'utf-8');
+
+        // Prepare button
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('export_csv')
+                    .setLabel('📥 Export CSV')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+        // Save CSV in memory for the interaction
+        interaction.client._csvExport = csvBuffer;
+
+        await interaction.editReply({ embeds: [embed], components: [row] });
     }
 };
-

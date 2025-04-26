@@ -1,54 +1,48 @@
 // File: handlers/confirmButton.js
 
-const { saveDonation } = require('../db/donations');
+const db = require('../db/database');
 
 async function handleDonationConfirmation(interaction) {
-    if (!interaction.isButton()) return;
+    const { customId, user } = interaction;
 
-    const customId = interaction.customId;
+    if (customId !== 'confirm_donation' && customId !== 'cancel_donation') return;
 
-    if (customId === 'confirmDonation') {
-        // Extract data from the original message (embed fields)
-        const embed = interaction.message.embeds[0];
-        if (!embed) {
-            return interaction.reply({ content: '❌ Unable to retrieve donation details.', ephemeral: true });
-        }
+    const pendingKey = `pending_confirmation_${user.id}`;
+    const pendingDonation = await db.get(pendingKey);
 
-        const fields = embed.fields.reduce((acc, field) => {
-            acc[field.name.toLowerCase().replace(' ', '_')] = field.value;
-            return acc;
-        }, {});
+    // console.log('✅ DEBUG: pendingDonation data:', pendingDonation);
 
-        // Prepare data to save
-        const donationData = {
-            discord_user_id: interaction.user.id,
-            discord_username: interaction.user.tag,
-            character: fields.character,
-            method: fields.method,
-            clan: fields.clan,
-            donation_date: fields.donation_date,
-            week: fields.week,
-            timestamp: new Date().toISOString()
-        };
-
-        // Save the donation to the database
-        await saveDonation(donationData);
-
-        // Reply success
-        await interaction.update({
-            content: '✅ Your donation has been successfully registered. Thank you!',
-            components: [],
-            embeds: []
-        });
-
-    } else if (customId === 'cancelDonation') {
-        // Cancel donation process
-        await interaction.update({
-            content: '❌ Donation cancelled. No data has been saved.',
-            components: [],
-            embeds: []
+    if (!pendingDonation) {
+        return await interaction.reply({
+            content: '❌ No pending donation found. Please try again or resubmit your donation.',
+            ephemeral: true
         });
     }
+
+    const donation = pendingDonation.value || pendingDonation; // Support both formats
+
+    if (customId === 'cancel_donation') {
+        await db.delete(pendingKey);
+
+        return await interaction.update({
+            content: '❌ Donation canceled successfully.',
+            components: []
+        });
+    }
+
+    let donations = await db.get('donations');
+    if (!Array.isArray(donations)) {
+        donations = [];
+    }
+
+    donations.push(donation);
+    await db.set('donations', donations);
+    await db.delete(pendingKey);
+
+    await interaction.update({
+        content: `✅ Donation from **${donation.character}** successfully registered for **${donation.week}**.`,
+        components: []
+    });
 }
 
 module.exports = { handleDonationConfirmation };

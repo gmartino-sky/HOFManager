@@ -2,54 +2,53 @@
 
 const { DateTime } = require('luxon');
 
-// Timezone configuration
-const TIMEZONE = 'Etc/GMT+2'; // GMT-2
-
-function getCurrentWeekStart() {
-    return DateTime.now().setZone(TIMEZONE).startOf('week').minus({ days: 0 }); // Sunday 00:00
-}
-
-function getCurrentWeekEnd() {
-    return DateTime.now().setZone(TIMEZONE).endOf('week').minus({ days: 1 }); // Saturday 23:59
-}
-
 /**
- * Validates if a donation date is within the current week and not in the future.
- * @param {string} dateStr - Format YYYY-MM-DD
- * @returns {boolean}
+ * Converts an ISO date string to "Week XX - Month" format.
+ * Example: "Week 17 - April"
  */
-function validateDonationDate(dateStr) {
-    const donationDate = DateTime.fromISO(dateStr, { zone: TIMEZONE });
-    const now = DateTime.now().setZone(TIMEZONE);
-
-    if (!donationDate.isValid) {
-        return false;
-    }
-
-    if (donationDate > now) {
-        return false;
-    }
-
-    const weekStart = getCurrentWeekStart();
-    const weekEnd = getCurrentWeekEnd();
-
-    return donationDate >= weekStart && donationDate <= weekEnd;
-}
-
-/**
- * Formats a date into "Week XX - Month" string
- * @param {string} dateStr - Format YYYY-MM-DD
- * @returns {string}
- */
-function formatWeek(dateStr) {
-    const date = DateTime.fromISO(dateStr, { zone: TIMEZONE });
+function getWeekStringFromDate(dateInput) {
+    const date = DateTime.fromISO(dateInput, { zone: 'America/Sao_Paulo' }); // adjust timezone if needed
     const weekNumber = date.weekNumber;
-    const monthName = date.toFormat('LLLL'); // Full month name
+    const monthName = date.toFormat('LLLL');
+    return `Week ${weekNumber} - ${monthName}`;
+}
 
+/**
+ * Returns today's week in "Week XX - Month" format.
+ */
+function getCurrentWeekString() {
+    const now = DateTime.now().setZone('America/Sao_Paulo');
+    const weekNumber = now.weekNumber;
+    const monthName = now.toFormat('LLLL');
+    return `Week ${weekNumber} - ${monthName}`;
+}
+
+/**
+ * Returns the current server time as a Luxon DateTime object.
+ */
+function getCurrentServerTime() {
+    return DateTime.now().setZone('America/Sao_Paulo');
+}
+
+/**
+ * Parses and validates a date string.
+ */
+function parseDate(dateInput) {
+    const date = DateTime.fromISO(dateInput, { zone: 'America/Sao_Paulo' });
+    return date.isValid ? date : null;
+}
+
+function formatWeek(date) {
+    const dt = DateTime.fromJSDate(date, { zone: 'America/Sao_Paulo' });
+    const weekNumber = dt.weekNumber;
+    const monthName = dt.toFormat('LLLL');
     return `Week ${weekNumber} - ${monthName}`;
 }
 
 module.exports = {
-    validateDonationDate,
-    formatWeek
+    getWeekStringFromDate,
+    getCurrentWeekString,
+    getCurrentServerTime,
+    parseDate,
+    formatWeek // <-- agregar acá la exportación
 };

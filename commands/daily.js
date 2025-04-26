@@ -26,6 +26,9 @@ module.exports = {
     async execute(interaction) {
         const member = interaction.member;
 
+        console.log('User roles:', member.roles.cache.map(role => role.id));
+        console.log('Required ClanLeaderRoleId:', ClanLeaderRoleId);
+
         if (!member.roles.cache.has(ClanLeaderRoleId)) {
             return interaction.reply({
                 content: '❌ You do not have permission to use this command.',
@@ -49,7 +52,12 @@ module.exports = {
         let success = 0;
         for (const user of targets) {
             try {
-                await user.send('📣 Hey! Don’t forget to complete your daily donations today. The clan depends on you!');
+                const reminderMessage =
+                    `📣 Hey ${user.username}! Don’t forget to complete your daily donations today. The clan depends on you! 🙌
+📣 ¡Hola ${user.username}! No olvides completar tus donaciones diarias hoy. ¡El clan depende de ti! 🙌
+📣 嘿 ${user.username}！今天不要忘记完成你的每日捐赠。公会需要你！🙌`;
+
+                await user.send(reminderMessage);
                 success++;
             } catch (err) {
                 console.error(`❌ Failed to DM ${user.tag}`, err);

@@ -12,7 +12,7 @@ const { startDailyReminder } = require('./cron/dailyReminder');
 const donationCommand = require('./commands/donation');
 const weekReportCommand = require('./commands/weekReport');
 const historyUserCommand = require('./commands/historyUser');
-const changeMainCommand = require('./commands/changeMain'); // deprecado, se puede eliminar después
+// const changeMainCommand = require('./commands/changeMain'); // deprecado, se puede eliminar después
 const dailyCommand = require('./commands/daily');
 const registerCharCommand = require('./commands/registerChar'); // nuevo comando
 
@@ -31,7 +31,7 @@ client.commands = new Collection();
 client.commands.set(donationCommand.data.name, donationCommand);
 client.commands.set(weekReportCommand.data.name, weekReportCommand);
 client.commands.set(historyUserCommand.data.name, historyUserCommand);
-client.commands.set(changeMainCommand.data.name, changeMainCommand); // podrías comentar esta línea si eliminamos /change-main
+//client.commands.set(changeMainCommand.data.name, changeMainCommand); // podrías comentar esta línea si eliminamos /change-main
 client.commands.set(dailyCommand.data.name, dailyCommand);
 client.commands.set(registerCharCommand.data.name, registerCharCommand);
 

@@ -1,60 +1,55 @@
 // File: handlers/confirmDonation.js
 
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { validateDonationDate, formatWeek } = require('../utils/date');
+const db = require('../db/database');
+const { DateTime } = require('luxon');
 
 async function handleDonationModal(interaction) {
     if (!interaction.isModalSubmit()) return;
-    if (interaction.customId !== 'donationModal') return;
+    if (!interaction.customId.startsWith('donation_modal')) return;
 
-    const characterName = interaction.fields.getTextInputValue('characterName');
-    const donationMethod = interaction.fields.getSelectMenuValues('donationMethod')?.[0];
-    const clan = interaction.fields.getSelectMenuValues('clan')?.[0];
-    let donationDate = interaction.fields.getTextInputValue('donationDate') || new Date().toISOString().slice(0, 10);
+    const discordUserId = interaction.user.id;
+    const discordUsername = interaction.user.tag;
 
-    // Validate donation date
-    const isDateValid = validateDonationDate(donationDate);
-    if (!isDateValid) {
-        return interaction.reply({
-            content: '❌ Invalid donation date. It must be within the current week and not in the future.',
+    const character = interaction.fields.getTextInputValue('character_name').trim();
+    const method = interaction.fields.getTextInputValue('donation_method').trim().toLowerCase();
+    const clan = interaction.fields.getTextInputValue('clan_name').trim();
+    const donationDateStr = interaction.fields.getTextInputValue('donation_date').trim();
+
+    // Parse the date
+    const donationDate = DateTime.fromISO(donationDateStr, { zone: 'America/Sao_Paulo' });
+
+    if (!donationDate.isValid) {
+        return await interaction.reply({
+            content: '❌ Invalid date format. Please use YYYY-MM-DD.',
             ephemeral: true
         });
     }
 
-    // Format week info
-    const week = formatWeek(donationDate);
+    // Calculate the correct week ending based on the Saturday
+    const saturday = donationDate.endOf('week').minus({ days: 1 });
+    const week = `Week ending ${saturday.toFormat('dd')} - ${saturday.toFormat('LLLL')}`;
 
-    // Create confirmation Embed
-    const confirmationEmbed = new EmbedBuilder()
-        .setTitle('Confirm your Donation Details')
-        .addFields(
-            { name: 'Character', value: characterName, inline: true },
-            { name: 'Method', value: donationMethod, inline: true },
-            { name: 'Clan', value: clan, inline: true },
-            { name: 'Donation Date', value: donationDate, inline: false },
-            { name: 'Week', value: week, inline: false }
-        )
-        .setColor(0x00FF00);
+    const donationRecord = {
+        discord_user_id: discordUserId,
+        discord_username: discordUsername,
+        character,
+        method,
+        clan,
+        donation_date: donationDate.toISODate(),
+        week,
+        timestamp: new Date().toISOString()
+    };
 
-    const confirmButton = new ButtonBuilder()
-        .setCustomId('confirmDonation')
-        .setLabel('✅ Confirm')
-        .setStyle(ButtonStyle.Success);
+    let donationsRaw = await db.get('donations');
+    const donations = Array.isArray(donationsRaw) ? donationsRaw : (donationsRaw?.value || []);
 
-    const cancelButton = new ButtonBuilder()
-        .setCustomId('cancelDonation')
-        .setLabel('❌ Cancel')
-        .setStyle(ButtonStyle.Danger);
-
-    const actionRow = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+    donations.push(donationRecord);
+    await db.set('donations', donations);
 
     await interaction.reply({
-        embeds: [confirmationEmbed],
-        components: [actionRow],
+        content: `✅ Donation from **${character}** registered successfully for **${week}**.`,
         ephemeral: true
     });
-
-    // We wait for the button interaction later in another handler
 }
 
 module.exports = { handleDonationModal };

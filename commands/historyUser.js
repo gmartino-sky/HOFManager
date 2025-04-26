@@ -1,68 +1,71 @@
-// File: commands/historyUser.js
-
+// Import necesario al principio:
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUserCharacters } = require('../db/users');
 const { getDonationsByUser } = require('../db/donations');
-const { formatWeek } = require('../utils/date');
+const { DateTime } = require('luxon');
+
+function generateLast4Weeks() {
+    const weeks = [];
+    let now = DateTime.now().setZone('America/Sao_Paulo');
+
+    for (let i = 0; i < 4; i++) {
+        const targetWeek = now.minus({ weeks: i });
+        const saturday = targetWeek.endOf('week').minus({ days: 1 });
+        const formatted = `Week ending ${saturday.toFormat('dd')} - ${saturday.toFormat('LLLL')}`;
+        weeks.push(formatted);
+    }
+
+    return weeks;
+}
+
+
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('history-user') // ✅ ESTE NOMBRE
-        .setDescription('View your donation history for the past 4 weeks'),
+        .setName('history-user')
+        .setDescription('View your character donation history.'),
 
     async execute(interaction) {
         const discordUserId = interaction.user.id;
-        const userCharacters = await getUserCharacters(discordUserId);
+        const characters = await getUserCharacters(discordUserId);
 
-        if (!userCharacters || userCharacters.length === 0) {
+        if (!characters.length) {
             return await interaction.reply({
                 content: '❌ No characters found linked to your account.',
                 ephemeral: true
             });
         }
 
-        const userDonations = await getDonationsByUser(discordUserId);
-        const weeksToCheck = generateLast4Weeks();
+        const donations = await getDonationsByUser(discordUserId);
+        const last4Weeks = generateLast4Weeks();
 
         const embed = new EmbedBuilder()
             .setTitle('Your Donation History')
-            .setColor(0x00bcd4);
+            .setColor(0x00AE86);
 
-        for (const character of userCharacters) {
-            let donationStatus = '';
+        const fields = [];
 
-            for (const week of weeksToCheck) {
-                const donated = userDonations.find(donation =>
-                    donation.character === character.character_name && donation.week === week
-                );
-                donationStatus += donated ? `✅ ${week}\n` : `❌ ${week}\n`;
-            }
+        const orderedCharacters = [
+            ...characters.filter(c => c.type === 'main'),
+            ...characters.filter(c => c.type === 'alt')
+        ];
 
-            embed.addFields({
-                name: `${character.character_name} (${character.type.toUpperCase()})`,
-                value: donationStatus,
+        orderedCharacters.forEach(character => {
+            fields.push({
+                name: `${character.name} (${character.type.toUpperCase()})`,
+                value: last4Weeks.map(week => {
+                    const donated = donations.some(d => d.week === week && d.character === character.name);
+                    return `${donated ? '✅' : '❌'} ${week}`;
+                }).join('\n'),
                 inline: false
             });
-        }
-
-        await interaction.reply({
-            embeds: [embed],
-            ephemeral: true
         });
+
+        // console.log('✅ DEBUG fields array:', fields);
+
+
+        embed.addFields(fields);
+
+        await interaction.reply({ embeds: [embed], ephemeral: true });
     }
 };
-
-/**
- * Generates an array of last 4 weeks in format "Week XX - Month"
- */
-function generateLast4Weeks() {
-    const weeks = [];
-    let date = new Date();
-
-    for (let i = 0; i < 4; i++) {
-        weeks.unshift(formatWeek(date.toISOString()));
-        date.setDate(date.getDate() - 7);
-    }
-
-    return weeks;
-}
